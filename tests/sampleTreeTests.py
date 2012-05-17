@@ -43,10 +43,10 @@ class TestCase(unittest.TestCase):
 
     def testSampleTreeBigger(self):
         tree = SampleTree(degree=5)
-        for i in range(0,100000):
+        for i in range(0,10000):
             tree.insert(str(i), i)
-        assert tree.size() == 100000
-        assert tree.weight() == (99999 * 100000) / 2
+        assert tree.size() == 10000
+        assert tree.weight() == (9999 * 10000) / 2
         
 
 def main():
