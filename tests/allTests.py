@@ -8,10 +8,12 @@ import unittest
 import sys
 import os
 from contigSim.tests.sampleTreeTests import TestCase as sampleTreeTest
+from contigSim.tests.eventQueueTests import TestCase as eventQueueTest
 
 def allSuites(): 
     allTests =unittest.TestSuite(
-        (unittest.makeSuite(sampleTreeTest, 'test')))
+        (unittest.makeSuite(sampleTreeTest, 'test'),
+         unittest.makeSuite(eventQueueTest, 'test')))
     return allTests
         
 def main():    
