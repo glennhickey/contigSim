@@ -60,17 +60,51 @@ def __dcj_linear(cont, pos1, pos2, forward):
         cirCont = middle.circularize()
         return (linCont, cirCont)
 
+# dcj between two linear contigs makes two linear contigs
+# case 1) "forward" AB + CD => A-C + -BD
+# case 2) "reverse" AB + CD => AD + CB
 def __dcj_linear_linear(cont1, pos1, pos2, forward, cont2):
-    pass
+    a,b = cont1.cut(pos1)
+    c,d = cont2.cut(pos2)
+    if forward:
+        return (a.joinToRight(c, forward=False),
+                d.joinToLeft(b, forward=False))
+    else:
+        return (a.joinToRight(d, forward=True),
+                c.joinToRight(b, forward=True))
 
+# dcj between a linear and circular contig makes a single linear contig
+# case 1) "forward" AB + C => ACB
+# case 2) "reverse" AB + C => A-CB
 def __dcj_linear_circular(cont1, pos1, pos2, forward, cont2):
-    pass
+    c = cont2.linearize(pos2)
+    if forward:
+        return (cont.joinToRight(c, True).joinToRight(b, True),)
+    else:
+        return (cont.joinToRight(c, False).joinToRight(b, True),)
 
+# dcj on single circular contig
+# case 1) both breaks on same edge: (ERROR)
+# case 2) forward : figure 8
+# case 3) reverse : cut in two
 def __dcj_circular(cont, pos1, pos2, forward):
-    pass
+    assert pos1 != pos2
+    p1 = min(pos1, pos2)
+    p2 = max(pos1, pos2)
+    temp = cont.linearize(p1)
+    left, right = temp.cut(p2 - p1)
+    if forward:
+        temp = left.joinToRight(right, False)
+        return (temp.circularize(),)
+    else:
+        return (left.circularize(), right.circularize)
 
+# dcj on two circular contigs makes a single circular contig
+# case 1) forward : AB
+# case 2) reverse : A-B
 def __dcj_circular_circular(cont1, pos1, pos2, forward, cont2):
-    pass
+    return (cont1.join(cont2, pos1, pos2, forward),)
 
+# dcj on a circular with a linear (same as linear with circular)    
 def __dcj_circular_linear(cont1, pos1, pos2, forward, cont2):
-    pass
+    return __dcj_linear_circular(cont2, pos2, pos1, not forward, cont1)

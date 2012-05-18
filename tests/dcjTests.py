@@ -50,6 +50,17 @@ class TestCase(unittest.TestCase):
         assert res[0].size == 9
         assert res[1].size == 1
 
+    def testDcjLinearLinear(self):
+        c1 = LinearContig(100)
+        c2 = LinearContig(50)
+        res = dcj(c1, 30, 20, True, c2)
+        assert len(res) == 2
+        assert res[0].size == 51
+        assert res[1].size == 99
+        
+    def testDcjLinearCircular(self):
+        
+        pass
         
         
 def main():
