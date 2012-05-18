@@ -33,37 +33,30 @@ class TestCase(unittest.TestCase):
         assert lc1.isCircular() == False
         cc1 = lc1.circularize()
         assert cc1.isCircular() == True
-        assert cc1.numBases() == 9
+        assert cc1.numBases() == 11
         lc1 = cc1.linearize()
         assert lc1.numBases() == 9
 
-        rcut1 = lc1.cutRightOff(7)
-        assert rcut1.size == 3
-        assert lc1.size == 8
-
-        lcut1 = lc1.cutLeftOff(2)
-        assert lc1.size == 6
-        assert lcut1.size == 3
-
-        lcut1.joinToLeft(rcut1)
-        assert lcut1.size == 5
+        l,r = lc1.cut(7)
+        assert l.size == 7
+        assert r.size == 2
+        lc1 = l.joinToLeft(r)
+        assert lc1.size == 10
 
     def testCircularContigs(self):
         cc1 = CircularContig(5)
         lc1 = cc1.linearize()
         assert cc1.isCircular() == True
         assert lc1.isLinear() == True
-        assert lc1.size == 6
+        assert lc1.size == 4
         assert cc1.numBases() == 5
-        cc2 = cc1.cutOffCircle(0, 3)
-        assert cc2.size == 3
-        assert cc1.size == 2
 
-        cc1.joinOval(cc2)
+        l,r  = cc1.cut(0, 3)
+        assert l.size == 2
+        assert r.size == 3
+
+        cc1 = l.join(r)
         assert cc1.numBases() == 5
-        
-        
-        
         
 def main():
     parseCactusSuiteTestOptions()

@@ -13,7 +13,9 @@ import math
 contig can be decomposed into an alternating walk of bases and adjacency
 edges. in the current implementation we only keep track of the number of
 adjacency edges in the contig, and whether its circular or linear. linear
-contigs have an extra edge because of implicit telomere bases.  
+contigs have an extra edge because of implicit telomere bases.  the operations
+in the member functions don't change the object (return new ones instead).
+New telomeres aren't created when cutting a linear contig (done outside)
 
 """
 class Contig(object):
@@ -39,38 +41,35 @@ class LinearContig(Contig):
         else:
             return self.size - 1
 
-    # break the contig at its positionth adjacency.  return a new contig
-    # of everything to the left (and keep everything to the right).  two
-    # new telomeres are implicity created
-    def cutLeftOff(self, position):
+    # cut (remove edge) at position, returning a left contig and a right contig
+    # (original not touched)
+    def cut(self, position):
         assert position < self.size
-        self.size -= position
-        return LinearContig(position + 1)
+        l = LinearContig(position)
+        r = LinearContig(self.size - position - 1)
+        return (l,r)
 
-    # break the contig at its positionth adjacency.  return a new contig
-    # of everything to the right (and keep everything to the left).  two
-    # new telomeres are implicity created
-    def cutRightOff(self, position):
-        assert position < self.size
-        newSize = self.size - position
-        self.size = position + 1
-        return LinearContig(newSize)
+    # get the contig in reverse orientation
+    def reverse(self):
+        return copy.deepcopy(self)
 
-    # pop off the telomeres and close the linear contig into a circle
+    # add edge between two endpoints
     # return the new circular contig (current contig is unchange)
     def circularize(self):
-        return CircularContig(self.size - 1)
+        return CircularContig(self.size + 1)
 
-    # stick another linear contig to the left
-    def joinToLeft(self, other):
+    # stick another linear contig to the left (new edge)
+    # forward is the direction of the other contig
+    def joinToLeft(self, other, forward=True):
         assert type(other) == LinearContig
-        self.size += other.size - 1
+        return LinearContig(self.size + other.size + 1)
 
-    # stick another linear contig to the right
-    # same as above since without actual bases its symmetric
-    def joinToRight(self, other):
+    # stick another linear contig to the right (new edge)
+    # forward is the direction of the other contig
+    def joinToRight(self, other, forward=True):
         assert type(other) == LinearContig
-        self.size += other.size - 1
+        return LinearContig(self.size + other.size + 1)
+
 
 
 class CircularContig(Contig):
@@ -92,27 +91,21 @@ class CircularContig(Contig):
         else:
             return self.size
 
-    # chop off a segment and make a new circular contig out of it
-    def cutOffCircle(self, pos1, pos2):
-        self.size -= math.fabs(pos1 - pos2)
-        return CircularContig(math.fabs(pos1 - pos2))
+    # chop a contig into two circles
+    def cut(self, pos1, pos2):
+        left = CircularContig(self.size - math.fabs(pos1 - pos2))
+        right = CircularContig(math.fabs(pos1 - pos2))
+        return (left, right)
     
     # return a linearized version of the circular contig by cutting at position
+    # (removing edge)
     def linearize(self, position = 0):
-        return LinearContig(self.size + 1)
+        return LinearContig(self.size - 1)
 
-    # cut cricle at pos1 (AB) and other circle at pos2 (CD)
-    # join them to form new adjacencies AC and BD
-    def joinOval(self, other, pos1 = 0, pos2 = 0):
-        assert type(other) == CircularContig
-        self.size += other.size
-        
-    # cut cricle at pos1 (AD) and other circle at pos2 (BC)
-    # join them to form new adjacencies AC and BD
-    def joinEight(self, other, pos1 = 0, pos2 = 0):
-        assert type(other) == CircularContig
-        self.size += other.size
-
+    # join two circles with a dcj operation
+    def join(self, other, pos1 = 0, pos2 = 0, forward = True):
+        return CircularContig(self.size + other.size)
+    
 
     
     
