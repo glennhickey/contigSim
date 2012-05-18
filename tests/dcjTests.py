@@ -57,11 +57,64 @@ class TestCase(unittest.TestCase):
         assert len(res) == 2
         assert res[0].size == 51
         assert res[1].size == 99
+
+        res = dcj(c1, 30, 20, False, c2)
+        assert len(res) == 2
+        assert res[0].size + res[1].size == 150
         
     def testDcjLinearCircular(self):
-        
-        pass
-        
+        c1 = LinearContig(10)
+        c2 = CircularContig(5)
+        res = dcj(c1, 3, 0, True, c2)
+        assert len(res) == 1
+        assert res[0].size == 15
+        assert res[0].isLinear() == True
+
+        res = dcj(c1, 3, 3, False, c2)
+        assert len(res) == 1
+        assert res[0].size == 15
+        assert res[0].isLinear() == True
+
+    def testDcjCircular(self):
+        cont = CircularContig(10)
+        res = dcj(cont, 3, 4, True)
+        assert len(res) == 1
+        assert res[0].isCircular() == True
+        assert res[0].size == 10
+
+        res = dcj(cont, 2, 9, False)
+        assert len(res) == 2
+        assert res[0].isCircular() == True
+        assert res[0].size == 7
+        assert res[1].isCircular() == True
+        assert res[1].size == 3
+
+    def testDcjCircularCircular(self):
+        c1 = CircularContig(33)
+        c2 = CircularContig(15)
+        res = dcj(c1, 10, 11, True, c2)
+        assert len(res) == 1
+        assert res[0].isCircular() == True
+        assert res[0].size == 48
+
+        res = dcj(c1, 1, 11, False, c2)
+        assert len(res) == 1
+        assert res[0].isCircular() == True
+        assert res[0].size == 48
+
+    def testDcjCircularLinear(self):
+        c2 = LinearContig(10)
+        c1 = CircularContig(5)
+        res = dcj(c1, 3, 0, True, c2)
+        assert len(res) == 1
+        assert res[0].size == 15
+        assert res[0].isLinear() == True
+
+        res = dcj(c1, 3, 3, False, c2)
+        assert len(res) == 1
+        assert res[0].size == 15
+        assert res[0].isLinear() == True
+    
         
 def main():
     parseCactusSuiteTestOptions()

@@ -23,6 +23,7 @@ def dcj(cont1, pos1, pos2, forward=True, cont2=None):
     t2 = type(cont2)
     assert issubclass(t1, Contig)
     assert cont2 is None or issubclass(t2, Contig)
+    assert cont1 is not cont2
 
     if t1 == LinearContig:
         if cont2 is None:
@@ -35,10 +36,10 @@ def dcj(cont1, pos1, pos2, forward=True, cont2=None):
     if t1 == CircularContig:
         if cont2 is None:
             return __dcj_circular(cont1, pos1, pos2, forward)
-        elif t2 == LinearContg:
-            return __dcj_circular_circular(con1, pos1, pos2, forward, cont2)
+        elif t2 == LinearContig:
+            return __dcj_circular_linear(cont1, pos1, pos2, forward, cont2)
         else:
-            return __dcj_circular_linear(con1, pos1, pos2, forward, cont2)
+            return __dcj_circular_circular(cont1, pos1, pos2, forward, cont2)
 
     assert False
 
@@ -77,11 +78,12 @@ def __dcj_linear_linear(cont1, pos1, pos2, forward, cont2):
 # case 1) "forward" AB + C => ACB
 # case 2) "reverse" AB + C => A-CB
 def __dcj_linear_circular(cont1, pos1, pos2, forward, cont2):
+    a, b = cont1.cut(pos1)
     c = cont2.linearize(pos2)
     if forward:
-        return (cont.joinToRight(c, True).joinToRight(b, True),)
+        return (a.joinToRight(c, True).joinToRight(b, True),)
     else:
-        return (cont.joinToRight(c, False).joinToRight(b, True),)
+        return (a.joinToRight(c, False).joinToRight(b, True),)
 
 # dcj on single circular contig
 # case 1) both breaks on same edge: (ERROR)
@@ -92,12 +94,12 @@ def __dcj_circular(cont, pos1, pos2, forward):
     p1 = min(pos1, pos2)
     p2 = max(pos1, pos2)
     temp = cont.linearize(p1)
-    left, right = temp.cut(p2 - p1)
+    left, right = temp.cut(p2 - p1 - 1)
     if forward:
         temp = left.joinToRight(right, False)
         return (temp.circularize(),)
     else:
-        return (left.circularize(), right.circularize)
+        return (left.circularize(), right.circularize())
 
 # dcj on two circular contigs makes a single circular contig
 # case 1) forward : AB
