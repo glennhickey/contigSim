@@ -6,7 +6,11 @@
 import unittest
 import sys
 import os
-from contigSim.src.eventQueue import EventQueue
+import copy
+
+from contigSim.src.model import Model
+from contigSim.src.contig import LinearContig
+from contigSim.src.contig import CircularContig
 
 from sonLib.bioio import TestStatus
 from sonLib.bioio import system
@@ -24,26 +28,27 @@ class TestCase(unittest.TestCase):
             os.remove(tempFile)
         unittest.TestCase.tearDown(self)
         
-    def testEventQueueBuild(self):
-        eq = EventQueue()
-        eq.addEventType(0.01, "substitution")
-        eq.addEventType(0.001, "duplication")
-        eq.addEventType(0.0005, "fusion")
+    def testModelInit(self):
+        model = Model()
+        assert model.pool.size() == 0
 
-        eq.begin()
-        events = []
-        counts = dict()
-        counts["substitution"] = 0
-        counts["duplication"] = 0
-        counts["fusion"] = 0
-        
-        for i in range(0, 10000):
-            eventName = eq.next()
-            counts[eventName] += 1
+        model.setRates(0.1)
+        model.setStartingState(100, 0, 21, 3)
+        assert model.pool.size() == 24
+        assert model.pool.weight() == 121
 
-        assert counts["substitution"] >= counts["duplication"]
-        assert  counts["duplication"] >= counts["fusion"]
-        
+        linCount = 0
+        cirCount = 0
+        for contig in model.pool.dataElements():
+            if type(contig) == LinearContig:
+                linCount += 1
+            elif type(contig) == CircularContig:
+                cirCount += 1
+            else:
+                assert False
+
+        assert linCount == 21
+        assert cirCount == 3
         
 def main():
     parseCactusSuiteTestOptions()

@@ -37,7 +37,6 @@ class TestCase(unittest.TestCase):
         assert tree.weight() == 103
 
         tree.insert("rabbit", 100)
-        tree.printWeights(tree.root)
         assert tree.size() == 3
         assert tree.weight() == 203
 
@@ -47,6 +46,19 @@ class TestCase(unittest.TestCase):
             tree.insert(str(i), i)
         assert tree.size() == 10000
         assert tree.weight() == (9999 * 10000) / 2
+
+    def testSampleTreeIterate(self):
+        tree = SampleTree(degree=5)
+        for i in range(0,1000):
+            tree.insert(str(i), i)
+        assert tree.size() == 1000
+        assert tree.weight() == (999 * 1000) / 2
+
+        count = 0
+        for elem in tree.dataElements():
+            assert int(elem) >= 0 and int(elem) < 1000
+            count += 1
+        assert count == 1000
         
 
 def main():

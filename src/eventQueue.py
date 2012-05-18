@@ -15,12 +15,18 @@ from heapq import heappush, heappop
 with different (exponential) rates.  
 
 """
-class EventQueue:
+class EventQueue(object):
     def __init__(self):
         self.time = 0
         self.rates = dict()
         self.heap = []
 
+    # zap everything
+    def reset(self):
+        self.time = 0
+        self.rates = dict()
+        self.heap  = []
+        
     # add a new event (with an exponential rate and a unique name)
     def addEventType(self, rate, name):
         assert name not in self.rates
@@ -35,13 +41,17 @@ class EventQueue:
             heappush(self.heap, (delta, item[0]))
 
     # move clock forward to next event and return its name
-    def next(self):
+    def next(self, maxTime=sys.maxint):
         if len(self.heap) == 0:
             return None
         item = heappop(self.heap)
         name = item[1]
         assert self.time <= item[0]
         self.time = item[0]
-        nextTime = random.expovariate(self.rates[name]) + self.time
-        heappush(self.heap, (nextTime, name))
-        return name
+        if self.time > maxTime:
+            self.time = maxTime
+            return None
+        else:
+            nextTime = random.expovariate(self.rates[name]) + self.time
+            heappush(self.heap, (nextTime, name))
+            return name

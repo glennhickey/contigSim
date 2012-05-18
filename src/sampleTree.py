@@ -15,7 +15,7 @@ updates due to rearrangements.
 
 """
 
-class SampleTreeNode:
+class SampleTreeNode(object):
     def __init__(self, parent):
         self.weight = 0
         self.count = 0
@@ -23,7 +23,7 @@ class SampleTreeNode:
         self.children = []
         self.data = None
 
-class SampleTree:
+class SampleTree(object):
     def __init__(self, degree=4):
         self.degree = degree
         self.root = SampleTreeNode(None)
@@ -101,6 +101,17 @@ class SampleTree:
                     return self.uniformSample(child)
             tally += child.weight
         assert False
+
+    def dataElements(self, node=None):
+        if node is None:
+            node = self.root
+        if node.data is not None:
+            yield node.data
+        elif len(node.children) > 0:
+            for child in node.children:
+                assert child is not None
+                for recurseNode in self.dataElements(child):
+                    yield recurseNode
 
     def printWeights(self, node):
         print "%d " % node.weight
