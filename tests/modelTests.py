@@ -49,6 +49,23 @@ class TestCase(unittest.TestCase):
 
         assert linCount == 21
         assert cirCount == 3
+
+        model.setStartingState(100, 1, 3, 0)
+        assert model.pool.size() == 3
+        print model.pool.weight()
+        assert model.pool.weight() == 102
+
+        model.setStartingState(55, 11, 0, 4)
+        assert model.pool.size() == 4
+        assert model.pool.weight() == 44
+
+    def testSimulateCircularPool(self):
+        model = Model()
+        model.setRates(0.1)
+        model.setStartingState(100, 0, 0, 2)
+        model.simulate(100)
+        
+    
         
 def main():
     parseCactusSuiteTestOptions()

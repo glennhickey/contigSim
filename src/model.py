@@ -55,43 +55,51 @@ class Model(object):
                                          self.__linearFissionFusionEvent)
 
     # intitialize the starting state
+    # the the contigs will all have the same sizes (modulo rounding)
+    # in order to satisfy the input parameters exactly
     def setStartingState(self, nBases, garbageSize, numLinear, numCircular):
         assert nBases > garbageSize + numLinear + numCircular
         if garbageSize > 0:
             self.garbage = CircularContig(garbageSize)
         else:
             self.garbage = None
-        linearBases = math.floor((nBases - garbageSize) / 2.0)
-        circularBases = math.ceil((nBases - garbageSize) / 2.0)
+        self.pool = SampleTree()
+        lrat = float(numLinear) / (numLinear + numCircular)
+        crat = float(numCircular) / (numLinear + numCircular)
+        linearBases = math.floor((nBases - garbageSize) * lrat)
+        circularBases = math.ceil((nBases - garbageSize) * crat)
+        assert linearBases + circularBases + garbageSize == nBases
 
-        linSize = math.floor(linearBases / numLinear)
-        extra = linearBases % numLinear
-        added = 0
-        for i in range(numLinear):
-            size = linSize
-            if i < extra:
-                size += 1
-            # plus 1 because the number of adjacencies is 1 + number of bases
-            contig = LinearContig(size + 1)
-            self.pool.insert(contig, contig.size)
-            added += contig.size
-        assert added == linearBases + numLinear
-        assert self.pool.size() == numLinear
-        assert self.pool.weight() == linearBases + numLinear
+        if numLinear > 0:
+            linSize = math.floor(linearBases / numLinear)
+            extra = linearBases % numLinear
+            added = 0
+            for i in range(numLinear):
+                size = linSize
+                if i < extra:
+                    size += 1
+                # plus 1 since number of adjacencies is 1 + number of bases
+                contig = LinearContig(size + 1)
+                self.pool.insert(contig, contig.size)
+                added += contig.size
+            assert added == linearBases + numLinear
+            assert self.pool.size() == numLinear
+            assert self.pool.weight() == linearBases + numLinear
 
-        circSize = math.floor(circularBases / numCircular)
-        extra = circularBases % numCircular
-        added = 0
-        for i in range(numCircular):
-            size = circSize
-            if i < extra:
-                size += 1
-            contig = CircularContig(size)
-            self.pool.insert(contig, contig.size)
-            added += contig.size
-        assert added == circularBases
-        assert self.pool.size() == numLinear + numCircular
-        assert self.pool.weight() == circularBases + linearBases + numLinear
+        if numCircular > 0:
+            circSize = math.floor(circularBases / numCircular)
+            extra = circularBases % numCircular
+            added = 0
+            for i in range(numCircular):
+                size = circSize
+                if i < extra:
+                    size += 1
+                contig = CircularContig(size)
+                self.pool.insert(contig, contig.size)
+                added += contig.size
+            assert added == circularBases
+            assert self.pool.size() == numLinear + numCircular
+            assert self.pool.weight() == circularBases + linearBases + numLinear
 
     # run the simulation for the specified time
     def simulate(self, time):
