@@ -8,6 +8,7 @@ import os
 import sys
 import copy
 import random
+from collections import defaultdict
 
 """ In order to quickly sample contigs (uniformly based on their weights)
 we keep them in a b-tree.  This way sampling can be done in logN, as can
@@ -102,16 +103,35 @@ class SampleTree(object):
             tally += child.weight
         assert False
 
+
+    # iterate through the nodes containing data elements
+    #(stored in leaves) in the tree
+    def nodes(self, node=None):
+        if node is None:
+            node = self.root
+        yield node
+        for child in node.children:
+            for recChild in self.nodes(child):
+                yield recChild
+                
+    # iterate through the data elements (stored in leaves) in the tree
     def dataElements(self, node=None):
         if node is None:
             node = self.root
-        if node.data is not None:
-            yield node.data
-        elif len(node.children) > 0:
-            for child in node.children:
-                assert child is not None
-                for recurseNode in self.dataElements(child):
-                    yield recurseNode
+        for i in self.nodes(node):
+            if i.data is not None:
+                yield i.data
+        
+    # git a histogram of the node weights of data elements with whose
+    # types are instances of the given dataType
+    def histogram(self, binSize = 1, dataType=None):
+        hist = defaultdict(int)
+        for node in self.nodes():
+            if node.data is not None and\
+               (dataType is None or issubclass(type(node.data), dataType)):
+                bin = int(node.weight) / int(binSize)
+                hist[bin] += 1
+        return hist
 
     def printWeights(self, node):
         print "%d " % node.weight

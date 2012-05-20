@@ -47,6 +47,23 @@ class TestCase(unittest.TestCase):
         assert tree.size() == 10000
         assert tree.weight() == (9999 * 10000) / 2
 
+    def testNodes(self):
+        tree = SampleTree(degree=2)
+        for i in range(0,1000):
+            tree.insert(str(i), i)
+        assert tree.size() == 1000
+        assert tree.weight() == (999 * 1000) / 2
+
+        count = 0
+        weight = 0
+        for node in tree.nodes():
+            if node.data is not None:
+                count += 1
+                weight += node.weight
+
+        assert count == tree.size()
+        assert weight == tree.weight()
+            
     def testSampleTreeIterate(self):
         tree = SampleTree(degree=5)
         for i in range(0,1000):
@@ -59,6 +76,20 @@ class TestCase(unittest.TestCase):
             assert int(elem) >= 0 and int(elem) < 1000
             count += 1
         assert count == 1000
+
+    def testSampleTreeHistogram(self):
+        tree = SampleTree(degree=5)
+        for i in range(0,100):
+            tree.insert(str(i), i)
+
+        hist = tree.histogram()
+        for i in range(0,100):
+            assert hist[i] == 1
+
+        hist = tree.histogram(2, object)
+        for i in range(0, 50):
+            assert hist[i] == 2
+   
         
 
 def main():
