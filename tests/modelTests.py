@@ -64,9 +64,17 @@ class TestCase(unittest.TestCase):
         model.setStartingState(100, 0, 0, 2)
         model.simulate(100)
         assert model.eventQueue.time == 100
+        assert model.pool.size() >= 1 and model.pool.size() <= 102
+
+    def testSimulateMixedPool(self):
+        model = Model()
+        model.setRates(0.1)
+        model.setStartingState(10000, 0, 100, 0)
+        model.simulate(100000)
+        assert model.eventQueue.time == 100000
+        assert model.pool.size() >= 1 and model.pool.size() <= 1000
         
-    
-        
+            
 def main():
     parseCactusSuiteTestOptions()
     sys.argv = sys.argv[:1]

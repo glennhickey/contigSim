@@ -47,6 +47,24 @@ class TestCase(unittest.TestCase):
         assert tree.size() == 10000
         assert tree.weight() == (9999 * 10000) / 2
 
+    def testRemove(self):
+        tree = SampleTree(degree=5)
+        for i in range(0,1000):
+            tree.insert(str(i), i)
+
+        for node in tree.nodes():
+            if node.weight == 100:
+                tree.remove(node)
+                break
+
+        for node in tree.nodes():
+            if node.weight == 3:
+                tree.remove(node)
+                break
+
+        assert tree.size() == 998
+        assert tree.weight() == (999 * 1000) / 2 - 103
+
     def testNodes(self):
         tree = SampleTree(degree=2)
         for i in range(0,1000):

@@ -31,19 +31,19 @@ class TestCase(unittest.TestCase):
         
     def testDcjLinear(self):
         cont = LinearContig(10)
-        res = dcj(cont, 2, 6, True)
+        res = dcj(cont, 2, cont, 6, True)
         assert len(res) == 1
         assert res[0].size == 10
         assert res[0].isLinear() == True
 
-        res = dcj(cont, 2, 6, False)
+        res = dcj(cont, 2, cont, 6, False)
         assert len(res) == 2
         assert res[0].isLinear() == True
         assert res[1].isCircular() == True
         assert res[0].size == 6
         assert res[1].size == 4
 
-        res = dcj(cont, 1, 0, False)
+        res = dcj(cont, 1, cont, 0, False)
         assert len(res) == 2
         assert res[0].isLinear() == True
         assert res[1].isCircular() == True
@@ -53,36 +53,36 @@ class TestCase(unittest.TestCase):
     def testDcjLinearLinear(self):
         c1 = LinearContig(100)
         c2 = LinearContig(50)
-        res = dcj(c1, 30, 20, True, c2)
+        res = dcj(c1, 30, c2, 20, True)
         assert len(res) == 2
         assert res[0].size == 51
         assert res[1].size == 99
 
-        res = dcj(c1, 30, 20, False, c2)
+        res = dcj(c1, 30, c2, 20, False)
         assert len(res) == 2
         assert res[0].size + res[1].size == 150
         
     def testDcjLinearCircular(self):
         c1 = LinearContig(10)
         c2 = CircularContig(5)
-        res = dcj(c1, 3, 0, True, c2)
+        res = dcj(c1, 3, c2, 0, True)
         assert len(res) == 1
         assert res[0].size == 15
         assert res[0].isLinear() == True
 
-        res = dcj(c1, 3, 3, False, c2)
+        res = dcj(c1, 3, c2, 3, False)
         assert len(res) == 1
         assert res[0].size == 15
         assert res[0].isLinear() == True
 
     def testDcjCircular(self):
         cont = CircularContig(10)
-        res = dcj(cont, 3, 4, True)
+        res = dcj(cont, 3, cont, 4, True)
         assert len(res) == 1
         assert res[0].isCircular() == True
         assert res[0].size == 10
 
-        res = dcj(cont, 2, 9, False)
+        res = dcj(cont, 2, cont, 9, False)
         assert len(res) == 2
         assert res[0].isCircular() == True
         assert res[0].size == 7
@@ -92,12 +92,12 @@ class TestCase(unittest.TestCase):
     def testDcjCircularCircular(self):
         c1 = CircularContig(33)
         c2 = CircularContig(15)
-        res = dcj(c1, 10, 11, True, c2)
+        res = dcj(c1, 10, c2, 11, True)
         assert len(res) == 1
         assert res[0].isCircular() == True
         assert res[0].size == 48
 
-        res = dcj(c1, 1, 11, False, c2)
+        res = dcj(c1, 1, c2, 11, False)
         assert len(res) == 1
         assert res[0].isCircular() == True
         assert res[0].size == 48
@@ -105,12 +105,12 @@ class TestCase(unittest.TestCase):
     def testDcjCircularLinear(self):
         c2 = LinearContig(10)
         c1 = CircularContig(5)
-        res = dcj(c1, 3, 0, True, c2)
+        res = dcj(c1, 3, c2, 0, True)
         assert len(res) == 1
         assert res[0].size == 15
         assert res[0].isLinear() == True
 
-        res = dcj(c1, 3, 3, False, c2)
+        res = dcj(c1, 3, c2, 3, False)
         assert len(res) == 1
         assert res[0].size == 15
         assert res[0].isLinear() == True

@@ -112,8 +112,28 @@ class Model(object):
                 break
     
     def __poolEvent(self):
-        print "pool"
-        pass
+        if self.pool.size() == 0 or self.pool.weight() == 1:
+            return
+        
+        # draw (and remove) two random adajcenies and their
+        #contigs from the pool
+        sampleNode1, offset1 = self.pool.uniformSample()
+        sampleNode2, offset2 = self.pool.uniformSample()
+        # we don't allow breakpoints to be identical for now
+        while (sampleNode2, offset2) == (sampleNode1, offset1):
+            sampleNode2, offset2 = self.pool.uniformSample()
+        self.pool.remove(sampleNode1)
+        if sampleNode1 is not sampleNode2:
+            self.pool.remove(sampleNode2)
+
+        # do the random dcj
+        dcjResult = dcj(sampleNode1.data, offset1,
+                        sampleNode2.data, offset2,
+                        random.randint(0, 1) == 1)
+
+        # add the resulting contigs back to the pool
+        for res in dcjResult:
+            self.pool.insert(res, res.size)
 
     def __poolGarbageEvent(self):
         print "gbg"

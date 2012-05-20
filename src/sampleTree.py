@@ -93,7 +93,7 @@ class SampleTree(object):
         if node.weight == 0:
             return None
         x = random.randint(0, node.weight - 1)
-        tally = 0
+        tally = int(0)
         for child in node.children:
             if x < tally + child.weight:
                 if len(child.children) == 0:
@@ -102,7 +102,6 @@ class SampleTree(object):
                     return self.uniformSample(child)
             tally += child.weight
         assert False
-
 
     # iterate through the nodes containing data elements
     #(stored in leaves) in the tree

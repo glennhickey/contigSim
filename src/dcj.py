@@ -18,15 +18,14 @@ from contig import Contig
 # general interface to a djc operation (of which there are six possible kinds)
 # the positions are the target edges to be cut, and forward=True specifes
 # they are reattached left-to-left (False would be left-to-right)
-def dcj(cont1, pos1, pos2, forward=True, cont2=None):
+def dcj(cont1, pos1, cont2, pos2, forward=True):
     t1 = type(cont1)
     t2 = type(cont2)
     assert issubclass(t1, Contig)
     assert cont2 is None or issubclass(t2, Contig)
-    assert cont1 is not cont2
 
     if t1 == LinearContig:
-        if cont2 is None:
+        if cont2 is None or cont2 is cont1:
             return __dcj_linear(cont1, pos1, pos2, forward)
         elif t2 == LinearContig:
             return __dcj_linear_linear(cont1, pos1, pos2, forward, cont2)
@@ -34,7 +33,7 @@ def dcj(cont1, pos1, pos2, forward=True, cont2=None):
             return __dcj_linear_circular(cont1, pos1, pos2, forward, cont2)
 
     if t1 == CircularContig:
-        if cont2 is None:
+        if cont2 is None or cont2 is cont1:
             return __dcj_circular(cont1, pos1, pos2, forward)
         elif t2 == LinearContig:
             return __dcj_circular_linear(cont1, pos1, pos2, forward, cont2)
