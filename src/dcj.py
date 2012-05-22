@@ -25,6 +25,9 @@ def dcj(cont1, pos1, cont2, pos2, forward=True):
     t2 = type(cont2)
     assert issubclass(t1, Contig)
     assert cont2 is None or issubclass(t2, Contig)
+    assert pos1 < cont1.size
+    if cont2 is not None:
+        assert pos2 < cont2.size
 
     if t1 == LinearContig:
         if cont2 is None or cont2 is cont1:

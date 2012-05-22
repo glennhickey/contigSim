@@ -66,7 +66,7 @@ class Model(object):
         if garbageSize > 0:
             garbage = CircularContig(garbageSize)
             garbage.setDead()
-            self.pool.insert(garbage, garbage.size)
+            self.pool.insert(garbage, garbage.numBases())
             numGarbage = 1
         
         lrat = float(numLinear) / (numLinear + numCircular)
@@ -85,11 +85,11 @@ class Model(object):
                     size += 1
                 # plus 1 since number of adjacencies is 1 + number of bases
                 contig = LinearContig(size + 1)
-                self.pool.insert(contig, contig.size)
+                self.pool.insert(contig, contig.numBases())
                 added += contig.size
             assert added == linearBases + numLinear
             assert self.pool.size() == numLinear + numGarbage
-            assert self.pool.weight() == linearBases + numLinear + garbageSize
+            assert self.pool.weight() == linearBases + garbageSize
 
         if numCircular > 0:
             circSize = math.floor(circularBases / numCircular)
@@ -100,12 +100,12 @@ class Model(object):
                 if i < extra:
                     size += 1
                 contig = CircularContig(size)
-                self.pool.insert(contig, contig.size)
+                self.pool.insert(contig, contig.numBases())
                 added += contig.size
             assert added == circularBases
             assert self.pool.size() == numLinear + numCircular + numGarbage
             assert self.pool.weight() == circularBases + linearBases + \
-            numLinear + garbageSize
+            garbageSize
 
     ##################################################################
     # run the simulation for the specified time
@@ -121,6 +121,33 @@ class Model(object):
                 break
 
     ##################################################################
+    # draw (and remove) two random adajcenies and their
+    # contigs from the pool (only if they are not dead)
+    ##################################################################
+    def __drawSamples(self):
+        sampleNode1, offset1 = self.pool.uniformSample()
+        sampleNode2, offset2 = self.pool.uniformSample()
+
+        # the offset is weighted based on the number of bases
+        # we want to translate this into number of edges (splitting)
+        # the probability between linear and telomere edges.
+        # so for linear contigs with zero offset, we flip a coin to
+        # move it to the other side. 
+        if sampleNode1.data.isLinear() and offset1 == 0:
+            if random.random() < 0.5:
+                offset1 = sampleNode1.data.numBases()
+        if sampleNode2 is not sampleNode1 and sampleNode2.data.isLinear() and\
+           offset2 == 0:
+            if random.random() < 0.5:
+                offset2 = sampleNode2.data.numBases()
+
+        assert offset1 < sampleNode1.data.size
+        assert offset2 < sampleNode2.data.size
+        
+        return (sampleNode1, offset1, sampleNode2, offset2)
+
+    
+    ##################################################################
     #LIVE-LIVE event.  Is normal DCJ operation between two live contigs
     #unless the two breakpoints are identical or on telomeres, in which
     #case fl and fg parameters are used to use fission operations to
@@ -132,8 +159,7 @@ class Model(object):
         
         # draw (and remove) two random adajcenies and their
         #contigs from the pool (only if they are not dead)
-        sampleNode1, offset1 = self.pool.uniformSample()
-        sampleNode2, offset2 = self.pool.uniformSample()
+        sampleNode1, offset1, sampleNode2, offset2 = self.__drawSamples()
         c1 = sampleNode1.data
         c2 = sampleNode2.data
 
@@ -165,7 +191,7 @@ class Model(object):
             
         # add the resulting contigs back to the pool
         for res in dcjResult:
-            self.pool.insert(res, res.size)
+            self.pool.insert(res, res.numBases())
             
     ##################################################################
     # Do the fission telomere gain operation (if fg check passes)
@@ -184,12 +210,12 @@ class Model(object):
                            and dcjResult[1].isLinear()
                 # add the resulting contigs back to the pool
                 for res in dcjResult:
-                    self.pool.insert(res, res.size)
+                    self.pool.insert(res, res.numBases())
                 return
 
-        self.pool.insert(c1, c1.size)
+        self.pool.insert(c1, c1.numBases())
         if c2 is not c1:
-            self.pool.insert(c2, c2.size)
+            self.pool.insert(c2, c2.numBases())
                      
     ##################################################################
     # Do the fission telomer loss operation (if fl check passes)
@@ -213,11 +239,11 @@ class Model(object):
                 assert dcjResult[0].isCircular()
             # add the resulting contigs back to the pool
             for res in dcjResult:
-                self.pool.insert(res, res.size)
+                self.pool.insert(res, res.numBases())
         else:
-            self.pool.insert(c1, c1.size)
+            self.pool.insert(c1, c1.numBases())
             if c2 is not c1:
-                self.pool.insert(c2, c2.size)
+                self.pool.insert(c2, c2.numBases())
 
 
     ##################################################################
@@ -231,8 +257,7 @@ class Model(object):
         
         # draw (and remove) two random adajcenies and their
         #contigs from the pool (only if they are not dead)
-        sampleNode1, offset1 = self.pool.uniformSample()
-        sampleNode2, offset2 = self.pool.uniformSample()
+        sampleNode1, offset1, sampleNode2, offset2 = self.__drawSamples()
         c1 = sampleNode1.data
         c2 = sampleNode2.data
 
@@ -247,24 +272,26 @@ class Model(object):
         # make sure c1 is alive and c2 is dead
         if c1.isDead():
             c1, c2 = c2, c1
+            offset1, offset2 = offset2, offset1
 
         # do the dcj
         dcjResult = dcj(c1, offset1, c2, offset2, random.randint(0, 1) == 1)
 
         deadIdx = 0;
-        if len(res) == 2 and \
-               random.randint(0, res[0].size + res[1].size) >= res[0].size:
+        if len(dcjResult) == 2 and \
+               random.randint(0, dcjResult[0].size + dcjResult[1].size) >= \
+               dcjResult[0].size:
             deadIdx = 1
-        res[deadIdx].setDead(True)
+        dcjResult[deadIdx].setDead(True)
 
-        if len(res) == 1:
+        if len(dcjResult) == 1:
             self.ldLossCount += 1
         else:
             self.ldSwapCount += 1
             
          # add the resulting contigs back to the pool
         for res in dcjResult:
-            self.pool.insert(res, res.size)
+            self.pool.insert(res, res.numBases())
             
     ##################################################################
     #DEAD-DEAD event.  The dead contig rearranges with itself.  pgain
@@ -275,10 +302,7 @@ class Model(object):
         if self.pool.size() == 0 or self.pool.weight() == 1:
             return
         
-        # draw (and remove) two random adajcenies and their
-        #contigs from the pool (only if they are not dead)
-        sampleNode1, offset1 = self.pool.uniformSample()
-        sampleNode2, offset2 = self.pool.uniformSample()
+        sampleNode1, offset1, sampleNode2, offset2 = self.__drawSamples()
         c1 = sampleNode1.data
         c2 = sampleNode2.data
 
@@ -301,26 +325,27 @@ class Model(object):
         forward = random.random() > self.pgain
 
         # do the dcj
-        dcjResult = dcj(c1, offset1, c2, offset2, forwrad)
+        dcjResult = dcj(c1, offset1, c2, offset2, forward)
 
         deadIdx = 0;
-        if len(res) == 2 and \
-               random.randint(0, res[0].size + res[1].size) >= res[0].size:
-            deadIdx = 1
-        res[deadIdx].setDead(True)
+        if len(dcjResult) == 2 and \
+               random.randint(0, dcjResult[0].size + dcjResult[1].size) \
+                            >= dcjResult[0].size:
+                    deadIdx = 1
+        dcjResult[deadIdx].setDead(True)
 
         if forward:
             self.ddSwapCount += 1
-            assert len(res) == 1
+            assert len(dcjResult) == 1
         else:
             self.ddGainCount += 1
-            assert len(res) == 2
+            assert len(dcjResult) == 2
         
          # add the resulting contigs back to the pool
         for res in dcjResult:
-            self.pool.insert(res, res.size)
+            self.pool.insert(res, res.numBases())
 
-
+          
     ##################################################################
     # all counters set to zero.  
     ##################################################################

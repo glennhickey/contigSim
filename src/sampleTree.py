@@ -97,6 +97,7 @@ class SampleTree(object):
         for child in node.children:
             if x < tally + child.weight:
                 if len(child.children) == 0:
+                    assert x - tally < child.weight
                     return (child, x - tally)
                 else:
                     return self.uniformSample(child)

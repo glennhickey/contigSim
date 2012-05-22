@@ -35,7 +35,7 @@ class TestCase(unittest.TestCase):
         model.setParameters(100, 0.1)
         model.setStartingState(0, 21, 3)
         assert model.pool.size() == 24
-        assert model.pool.weight() == 121
+        assert model.pool.weight() == 100
 
         linCount = 0
         cirCount = 0
@@ -52,7 +52,7 @@ class TestCase(unittest.TestCase):
 
         model.setStartingState(1, 3, 0)
         assert model.pool.size() == 4
-        assert model.pool.weight() == 103
+        assert model.pool.weight() == 100
 
         model.setParameters(55, 0.1)
         model.setStartingState(11, 0, 4)
@@ -74,6 +74,12 @@ class TestCase(unittest.TestCase):
         model.simulate(100000)
         assert model.eventQueue.time == 100000
         assert model.pool.size() >= 1 and model.pool.size() <= 1000
+
+    def testSimulateAllParams(self):
+        model = Model()
+        model.setParameters(10000, 0.00001, 0.00001, 0.00001, 0.1, 0.1, 0.5)
+        model.setStartingState(100, 30, 30)
+        model.simulate(100000)
         
             
 def main():
