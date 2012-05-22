@@ -25,7 +25,9 @@ class Model(object):
     def __init__(self):
         self.pool = SampleTree()
         self.eventQueue = EventQueue()
+        self.__resetCounts()
 
+    ##################################################################
     # there are five kinds of rates:
     # N: (fixed) number of bases in the model
     # rll: rate for dcj on the bases in the contig pool
@@ -34,11 +36,15 @@ class Model(object):
     # rdd: both in garbage
     # fl: telomere loss modifier
     # fg: telomere gain modifier
-    def setParameters(self, N, rll, rld = 0, rdd = 0, fl = 0, fg = 0):        
+    # pgain: dead gain probability
+    ##################################################################
+    def setParameters(self, N, rll, rld = 0, rdd = 0, fl = 0, fg = 0,
+                      pgain = 0):        
         self.eventQueue.reset()
         self.N = N
         self.fl = fl
         self.fg = fg
+        self.pgain = pgain
 
         if rll > 0:
             self.eventQueue.addEventType(N * rll, self.__llEvent)
@@ -46,10 +52,12 @@ class Model(object):
             self.eventQueue.addEventType(N * rld, self.__ldEvent)
         if rdd > 0:
             self.eventQueue.addEventType(N * rdd, self.__ddEvent)
-
+            
+    ##################################################################
     # intitialize the starting state
     # the the contigs will all have the same sizes (modulo rounding)
     # in order to satisfy the input parameters exactly
+    ##################################################################
     def setStartingState(self, garbageSize, numLinear, numCircular):
         assert self.N > garbageSize + numLinear + numCircular
         self.pool = SampleTree()
@@ -99,16 +107,25 @@ class Model(object):
             assert self.pool.weight() == circularBases + linearBases + \
             numLinear + garbageSize
 
+    ##################################################################
     # run the simulation for the specified time
+    ##################################################################
     def simulate(self, time):
         self.eventQueue.begin()
+        self.__resetCounts()
         while True:
             nextEvent = self.eventQueue.next(time)
             if nextEvent is not None:
                 nextEvent()
             else:
                 break
-    
+
+    ##################################################################
+    #LIVE-LIVE event.  Is normal DCJ operation between two live contigs
+    #unless the two breakpoints are identical or on telomeres, in which
+    #case fl and fg parameters are used to use fission operations to
+    #modifiy the number of telomeres
+    ##################################################################
     def __llEvent(self):
         if self.pool.size() == 0 or self.pool.weight() == 1:
             return
@@ -119,74 +136,203 @@ class Model(object):
         sampleNode2, offset2 = self.pool.uniformSample()
         c1 = sampleNode1.data
         c2 = sampleNode2.data
-        if c1.isDead() == False and c2.isDead() == False:
-            self.pool.remove(sampleNode1)
-            if c1 is not c2:
-                self.pool.remove(sampleNode2)
 
-            gain = None
-            # case 1) gain of telomere
-            if sampleNode1 is sampleNode2 and offset1 == offset2:
-                # correct "not composite check below"
-                if c1.isCircular() or (offset1 != 0 and offset1 != c1.size - 1):
-                    forward = self.fg > random.random()
-                    gain = forward
+        # don't deal with dead contigs in this event
+        if c1.isDead() == True or c2.isDead() == True:
+            return
 
-            # case 2) loss of telomer
-            elif c1.isLinear() and c2.isLinear() and \
-                    (offset1 == 0 or offset1 == c1.size - 1) and \
-                    (offset2 == 0 or offset2 == c2.size - 1):
-                if sampleNode1 is sampleNode2:
-                    forward = self.fl / 4.0 > random.random()
-                else:
-                    forward = self.fl / 2.0 > random.random()
-                    if forward == True:
-                        c1 = c1.circularize()
-                        c2 = c2.circularize()
-                gain = not forward
-                 
-            # case 3) no gain or loss
-            else:
-                pass
+        self.pool.remove(sampleNode1)
+        if c1 is not c2:
+            self.pool.remove(sampleNode2)
 
-            # do the dcj
-            dcjResult = dcj(c1, offset1,
-                            c2, offset2,
-                            random.randint(0, 1) == 1)
-
-            # do assert checks here
-            if gain is True:
-                pass
-            elif gain is False:
-                pass
-            else:
-                pass
+        # case 1) gain of telomere
+        if sampleNode1 is sampleNode2 and offset1 == offset2:
+            return self.__llGain(c1, c2, offset1, offset2)
             
+          
+        # case 2) loss of telomere
+        elif c1.isLinear() and c2.isLinear() and \
+                 (offset1 == 0 or offset1 == c1.size - 1) and \
+                 (offset2 == 0 or offset2 == c2.size - 1):
+            return self.__llLoss(c1, c2, offset1, offset2)
+
+        # case 3) no gain or loss
+        self.llCount += 1
+        forward = random.randint(0, 1) == 1
+
+        # do the dcj
+        dcjResult = dcj(c1, offset1, c2, offset2, forward)
+            
+        # add the resulting contigs back to the pool
+        for res in dcjResult:
+            self.pool.insert(res, res.size)
+            
+    ##################################################################
+    # Do the fission telomere gain operation (if fg check passes)
+    ##################################################################
+    def __llGain(self, c1, c2, offset1, offset2):
+        # correct "not composite check below"
+        if c1.isCircular() or (offset1 != 0 and offset1 != c1.size - 1):
+            forward = self.fg > random.random()
+            if forward:
+                self.fgCount += 1
+                dcjResult = dcj(c1, offset1, c2, offset2, forward)
+                if c1.isCircular():
+                    assert len(dcjResult) == 1 and dcjResult[0].isLinear()
+                else:
+                    assert len(dcjResult) == 2 and dcjResult[0].isLinear() \
+                           and dcjResult[1].isLinear()
+                # add the resulting contigs back to the pool
+                for res in dcjResult:
+                    self.pool.insert(res, res.size)
+                return
+
+        self.pool.insert(c1, c1.size)
+        if c2 is not c1:
+            self.pool.insert(c2, c2.size)
+                     
+    ##################################################################
+    # Do the fission telomer loss operation (if fl check passes)
+    ##################################################################
+    def __llLoss(self, c1, c2, offset1, offset2):
+        if c1 is c2:
+            forward = self.fl / 4.0 > random.random()
+        else:
+            forward = self.fl / 2.0 > random.random()
+            if forward == True:
+                c1 = c1.circularize()
+                c2 = c2.circularize()
+        if forward:
+            dcjResult = dcj(c1, offset1, c2, offset2, forward)
+            self.flCount += 1
+            assert c1.isLinear() and c2.isLinear()
+            assert len(dcjResult) == 1
+            if c1 is not c2:
+                assert dcjResult[0].isLinear()
+            else:
+                assert dcjResult[0].isCircular()
             # add the resulting contigs back to the pool
             for res in dcjResult:
                 self.pool.insert(res, res.size)
+        else:
+            self.pool.insert(c1, c1.size)
+            if c2 is not c1:
+                self.pool.insert(c2, c2.size)
 
+
+    ##################################################################
+    #LIVE-DEAD (or DEAD-LIVE) event.  One contig is alive and the
+    #other is the unique dead contig.  This can result in a loss of
+    #live contigs and/or change in number of live bases
+    ##################################################################
     def __ldEvent(self):
-        print "gbg"
-        pass
+        if self.pool.size() == 0 or self.pool.weight() == 1:
+            return
+        
+        # draw (and remove) two random adajcenies and their
+        #contigs from the pool (only if they are not dead)
+        sampleNode1, offset1 = self.pool.uniformSample()
+        sampleNode2, offset2 = self.pool.uniformSample()
+        c1 = sampleNode1.data
+        c2 = sampleNode2.data
 
-    def __garbageSplitEvent(self):
-        pass
+        # only deal with live / dead contigs in this event
+        if (c1.isDead() == c2.isDead()):
+            return
 
-    def __garbageSelfEvent(self):
-        pass
+        self.pool.remove(sampleNode1)
+        if c1 is not c2:
+            self.pool.remove(sampleNode2)
 
-    def __linearFissionFusionEvent(self):
-        pass
+        # make sure c1 is alive and c2 is dead
+        if c1.isDead():
+            c1, c2 = c2, c1
 
-    # randomly choose an edge in the garbage (none if we select from
-    # the pool instead)
-    def __sampleGarbage(self):
-        x = random.randint(0, self.pool.size() + self.garbage.size - 1)
-        if x < self.garbage.size:
-            return x
-        return None
+        # do the dcj
+        dcjResult = dcj(c1, offset1, c2, offset2, random.randint(0, 1) == 1)
+
+        deadIdx = 0;
+        if len(res) == 2 and \
+               random.randint(0, res[0].size + res[1].size) >= res[0].size:
+            deadIdx = 1
+        res[deadIdx].setDead(True)
+
+        if len(res) == 1:
+            self.ldLossCount += 1
+        else:
+            self.ldSwapCount += 1
             
+         # add the resulting contigs back to the pool
+        for res in dcjResult:
+            self.pool.insert(res, res.size)
+            
+    ##################################################################
+    #DEAD-DEAD event.  The dead contig rearranges with itself.  pgain
+    #is used to decide how oftern this oepration breaks off a new circular
+    #live chormosome
+    ##################################################################
+    def __ddEvent(self):
+        if self.pool.size() == 0 or self.pool.weight() == 1:
+            return
+        
+        # draw (and remove) two random adajcenies and their
+        #contigs from the pool (only if they are not dead)
+        sampleNode1, offset1 = self.pool.uniformSample()
+        sampleNode2, offset2 = self.pool.uniformSample()
+        c1 = sampleNode1.data
+        c2 = sampleNode2.data
+
+        # only deal with dead / dead contigs in this event
+        if (c1.isDead() == False or c2.isDead() == False):
+            return
+
+        # only support single dead contig
+        assert c1 is c2
+
+        # don't know what to do here
+        if (offset1 == offset2):
+            return        
+
+        self.pool.remove(sampleNode1)
+        if c1 is not c2:
+            self.pool.remove(sampleNode2)
+
+        #forward means do not cut
+        forward = random.random() > self.pgain
+
+        # do the dcj
+        dcjResult = dcj(c1, offset1, c2, offset2, forwrad)
+
+        deadIdx = 0;
+        if len(res) == 2 and \
+               random.randint(0, res[0].size + res[1].size) >= res[0].size:
+            deadIdx = 1
+        res[deadIdx].setDead(True)
+
+        if forward:
+            self.ddSwapCount += 1
+            assert len(res) == 1
+        else:
+            self.ddGainCount += 1
+            assert len(res) == 2
+        
+         # add the resulting contigs back to the pool
+        for res in dcjResult:
+            self.pool.insert(res, res.size)
+
+
+    ##################################################################
+    # all counters set to zero.  
+    ##################################################################
+    def __resetCounts(self):
+        self.llCount = 0
+        self.fgCount = 0
+        self.flCount = 0
+        self.ldLossCount = 0
+        self.ldSwapCount = 0
+        self.ddGainCount = 0
+        self.ddSwapCount = 0
+
         
         
     
