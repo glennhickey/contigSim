@@ -32,8 +32,8 @@ class TestCase(unittest.TestCase):
         model = Model()
         assert model.pool.size() == 0
 
-        model.setRates(0.1)
-        model.setStartingState(100, 0, 21, 3)
+        model.setParameters(100, 0.1)
+        model.setStartingState(0, 21, 3)
         assert model.pool.size() == 24
         assert model.pool.weight() == 121
 
@@ -50,26 +50,27 @@ class TestCase(unittest.TestCase):
         assert linCount == 21
         assert cirCount == 3
 
-        model.setStartingState(100, 1, 3, 0)
-        assert model.pool.size() == 3
-        assert model.pool.weight() == 102
-
-        model.setStartingState(55, 11, 0, 4)
+        model.setStartingState(1, 3, 0)
         assert model.pool.size() == 4
-        assert model.pool.weight() == 44
+        assert model.pool.weight() == 103
+
+        model.setParameters(55, 0.1)
+        model.setStartingState(11, 0, 4)
+        assert model.pool.size() == 5
+        assert model.pool.weight() == 55
 
     def testSimulateCircularPool(self):
         model = Model()
-        model.setRates(0.1)
-        model.setStartingState(100, 0, 0, 2)
+        model.setParameters(100, 0.1)
+        model.setStartingState(0, 0, 2)
         model.simulate(100)
         assert model.eventQueue.time == 100
         assert model.pool.size() >= 1 and model.pool.size() <= 102
 
     def testSimulateMixedPool(self):
         model = Model()
-        model.setRates(0.1)
-        model.setStartingState(10000, 0, 100, 0)
+        model.setParameters(10000, 0.000001)
+        model.setStartingState(0, 100, 0)
         model.simulate(100000)
         assert model.eventQueue.time == 100000
         assert model.pool.size() >= 1 and model.pool.size() <= 1000

@@ -26,7 +26,7 @@ class EventQueue(object):
         self.time = 0
         self.rates = dict()
         self.heap  = []
-        
+
     # add a new event (with an exponential rate and a unique name)
     def addEventType(self, rate, name):
         assert name not in self.rates

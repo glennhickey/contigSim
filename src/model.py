@@ -25,50 +25,47 @@ class Model(object):
     def __init__(self):
         self.pool = SampleTree()
         self.eventQueue = EventQueue()
-        self.garbage = None
 
     # there are five kinds of rates:
-    # poolRate: rate for dcj on the bases in the contig pool
-    # poolGarbageRate: rate for dcj where one break is in the pool
+    # N: (fixed) number of bases in the model
+    # rll: rate for dcj on the bases in the contig pool
+    # rld: rate for dcj where one break is in the pool
     #      and the other rate is in the garbage
-    # garbageSplitRate: rate at which the garbage cuts off a piece of itself
-    #      to form a new contig (which gets added to pool)
-    # garbageSelfRate: rearrangements which just shuffle the garbage
-    # linearFissionFusionRate: split or merge linear contigs
-    def setRates(self, poolRate, poolGarbageRate = 0, garbageSplitRate = 0,
-                 garbageSelfRate = 0, linearFissionFusionRate = 0):
+    # rdd: both in garbage
+    # fl: telomere loss modifier
+    # fg: telomere gain modifier
+    def setParameters(self, N, rll, rld = 0, rdd = 0, fl = 0, fg = 0):        
         self.eventQueue.reset()
-        if poolRate > 0:
-            self.eventQueue.addEventType(poolRate,
-                                         self.__poolEvent)
-        if poolGarbageRate > 0:
-            self.eventQueue.addEventType(poolGarabgeRate,
-                                         self.__poolGarbageEvent)
-        if garbageSplitRate > 0:
-            self.eventQueue.addEventType(poolGarabgeRate,
-                                         self.__garbageSplitEvent)
-        if garbageSelfRate > 0:
-            self.eventQueue.addEventType(poolGarabgeRate,
-                                         self.__garbageSelfEvent)
-        if linearFissionFusionRate > 0:
-            self.eventQueue.addEventType(poolGarabgeRate,
-                                         self.__linearFissionFusionEvent)
+        self.N = N
+        self.fl = fl
+        self.fg = fg
+
+        if rll > 0:
+            self.eventQueue.addEventType(N * rll, self.__llEvent)
+        if rld > 0:
+            self.eventQueue.addEventType(N * rld, self.__ldEvent)
+        if rdd > 0:
+            self.eventQueue.addEventType(N * rdd, self.__ddEvent)
 
     # intitialize the starting state
     # the the contigs will all have the same sizes (modulo rounding)
     # in order to satisfy the input parameters exactly
-    def setStartingState(self, nBases, garbageSize, numLinear, numCircular):
-        assert nBases > garbageSize + numLinear + numCircular
-        if garbageSize > 0:
-            self.garbage = CircularContig(garbageSize)
-        else:
-            self.garbage = None
+    def setStartingState(self, garbageSize, numLinear, numCircular):
+        assert self.N > garbageSize + numLinear + numCircular
         self.pool = SampleTree()
+
+        numGarbage = 0
+        if garbageSize > 0:
+            garbage = CircularContig(garbageSize)
+            garbage.setDead()
+            self.pool.insert(garbage, garbage.size)
+            numGarbage = 1
+        
         lrat = float(numLinear) / (numLinear + numCircular)
         crat = float(numCircular) / (numLinear + numCircular)
-        linearBases = math.floor((nBases - garbageSize) * lrat)
-        circularBases = math.ceil((nBases - garbageSize) * crat)
-        assert linearBases + circularBases + garbageSize == nBases
+        linearBases = math.floor((self.N - garbageSize) * lrat)
+        circularBases = math.ceil((self.N - garbageSize) * crat)
+        assert linearBases + circularBases + garbageSize == self.N
 
         if numLinear > 0:
             linSize = math.floor(linearBases / numLinear)
@@ -83,8 +80,8 @@ class Model(object):
                 self.pool.insert(contig, contig.size)
                 added += contig.size
             assert added == linearBases + numLinear
-            assert self.pool.size() == numLinear
-            assert self.pool.weight() == linearBases + numLinear
+            assert self.pool.size() == numLinear + numGarbage
+            assert self.pool.weight() == linearBases + numLinear + garbageSize
 
         if numCircular > 0:
             circSize = math.floor(circularBases / numCircular)
@@ -98,8 +95,9 @@ class Model(object):
                 self.pool.insert(contig, contig.size)
                 added += contig.size
             assert added == circularBases
-            assert self.pool.size() == numLinear + numCircular
-            assert self.pool.weight() == circularBases + linearBases + numLinear
+            assert self.pool.size() == numLinear + numCircular + numGarbage
+            assert self.pool.weight() == circularBases + linearBases + \
+            numLinear + garbageSize
 
     # run the simulation for the specified time
     def simulate(self, time):
@@ -111,31 +109,64 @@ class Model(object):
             else:
                 break
     
-    def __poolEvent(self):
+    def __llEvent(self):
         if self.pool.size() == 0 or self.pool.weight() == 1:
             return
         
         # draw (and remove) two random adajcenies and their
-        #contigs from the pool
+        #contigs from the pool (only if they are not dead)
         sampleNode1, offset1 = self.pool.uniformSample()
         sampleNode2, offset2 = self.pool.uniformSample()
-        # we don't allow breakpoints to be identical for now
-        while (sampleNode2, offset2) == (sampleNode1, offset1):
-            sampleNode2, offset2 = self.pool.uniformSample()
-        self.pool.remove(sampleNode1)
-        if sampleNode1 is not sampleNode2:
-            self.pool.remove(sampleNode2)
+        c1 = sampleNode1.data
+        c2 = sampleNode2.data
+        if c1.isDead() == False and c2.isDead() == False:
+            self.pool.remove(sampleNode1)
+            if c1 is not c2:
+                self.pool.remove(sampleNode2)
 
-        # do the random dcj
-        dcjResult = dcj(sampleNode1.data, offset1,
-                        sampleNode2.data, offset2,
-                        random.randint(0, 1) == 1)
+            gain = None
+            # case 1) gain of telomere
+            if sampleNode1 is sampleNode2 and offset1 == offset2:
+                # correct "not composite check below"
+                if c1.isCircular() or (offset1 != 0 and offset1 != c1.size - 1):
+                    forward = self.fg > random.random()
+                    gain = forward
 
-        # add the resulting contigs back to the pool
-        for res in dcjResult:
-            self.pool.insert(res, res.size)
+            # case 2) loss of telomer
+            elif c1.isLinear() and c2.isLinear() and \
+                    (offset1 == 0 or offset1 == c1.size - 1) and \
+                    (offset2 == 0 or offset2 == c2.size - 1):
+                if sampleNode1 is sampleNode2:
+                    forward = self.fl / 4.0 > random.random()
+                else:
+                    forward = self.fl / 2.0 > random.random()
+                    if forward == True:
+                        c1 = c1.circularize()
+                        c2 = c2.circularize()
+                gain = not forward
+                 
+            # case 3) no gain or loss
+            else:
+                pass
 
-    def __poolGarbageEvent(self):
+            # do the dcj
+            dcjResult = dcj(c1, offset1,
+                            c2, offset2,
+                            random.randint(0, 1) == 1)
+
+            # do assert checks here
+            if gain is True:
+                pass
+            elif gain is False:
+                pass
+            else:
+                pass
+            
+            # add the resulting contigs back to the pool
+            for res in dcjResult:
+                self.pool.insert(res, res.size)
+
+    def __ldEvent(self):
         print "gbg"
         pass
 
@@ -148,6 +179,13 @@ class Model(object):
     def __linearFissionFusionEvent(self):
         pass
 
+    # randomly choose an edge in the garbage (none if we select from
+    # the pool instead)
+    def __sampleGarbage(self):
+        x = random.randint(0, self.pool.size() + self.garbage.size - 1)
+        if x < self.garbage.size:
+            return x
+        return None
             
         
         

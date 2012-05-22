@@ -18,6 +18,8 @@ from contig import Contig
 # general interface to a djc operation (of which there are six possible kinds)
 # the positions are the target edges to be cut, and forward=True specifes
 # they are reattached left-to-left (False would be left-to-right)
+# created contigs don't carry over "dead" information, so that has to be
+# set externally for now. 
 def dcj(cont1, pos1, cont2, pos2, forward=True):
     t1 = type(cont1)
     t2 = type(cont2)
@@ -43,13 +45,20 @@ def dcj(cont1, pos1, cont2, pos2, forward=True):
     assert False
 
 # dcj on a single linear contig
-# case 1) both breaks are on same edge: (ERROR)
+# case 1) both breaks are on same edge: cut into two if forward=true
 # case 2) join in "forward sense" returns A-BC
 # case 3) join in "reverse sense" returns AC, circle(B)"
 def __dcj_linear(cont, pos1, pos2, forward):
-    assert pos1 != pos2
     p1 = min(pos1, pos2)
     p2 = max(pos1, pos2)
+    if p1 == p2:
+        if forward == True:
+            left,right = cont.cut(p1)
+            left.size += 1
+            right.size += 1
+            return (left, right)
+        else:
+            return (copy.deepcopy(cont),)
     left, temp = cont.cut(p1)
     middle, right = temp.cut(p2 - left.size - 1)
     if forward:
@@ -85,13 +94,19 @@ def __dcj_linear_circular(cont1, pos1, pos2, forward, cont2):
         return (a.joinToRight(c, False).joinToRight(b, True),)
 
 # dcj on single circular contig
-# case 1) both breaks on same edge: (ERROR)
+# case 1) both breaks on same edge: cut into linear if forward=True
 # case 2) forward : figure 8
 # case 3) reverse : cut in two
 def __dcj_circular(cont, pos1, pos2, forward):
-    assert pos1 != pos2
     p1 = min(pos1, pos2)
     p2 = max(pos1, pos2)
+    if p1 == p2:
+        if forward is True:
+            result = cont.linearize(p1)
+            result.size += 1
+            return (result,)
+        else:
+            return (copy.deepcopy(cont),)
     temp = cont.linearize(p1)
     left, right = temp.cut(p2 - p1 - 1)
     if forward:

@@ -22,6 +22,14 @@ class Contig(object):
     def __init__(self, size):
         self.size = size
 
+    def setDead(self, dead=True):
+        self.dead = dead
+
+    def isDead(self):
+        if hasattr(self, 'dead'):
+            return self.dead
+        return False
+
 class LinearContig(Contig):
     def __init__(self, size = 1):
          super(LinearContig, self).__init__(size)
