@@ -124,11 +124,12 @@ class SampleTree(object):
         
     # git a histogram of the node weights of data elements with whose
     # types are instances of the given dataType
-    def histogram(self, binSize = 1, dataType=None):
+    def histogram(self, binSize = 1, dataType=None, checkFn = None):
         hist = defaultdict(int)
         for node in self.nodes():
             if node.data is not None and\
-               (dataType is None or issubclass(type(node.data), dataType)):
+               (dataType is None or issubclass(type(node.data), dataType)) and\
+               (checkFn is None or checkFn(node.data) == True):
                 bin = int(node.weight) / int(binSize)
                 hist[bin] += 1
         return hist
