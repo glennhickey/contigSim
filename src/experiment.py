@@ -10,6 +10,9 @@ import copy
 import random
 import math
 from collections import defaultdict
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.mlab as mlab
 
 from model import Model
 from sampleTree import SampleTree
@@ -74,19 +77,90 @@ class Experiment(object):
             if rep is 0:
                 self.results[key] = []
             self.results[key].append(results)
+            print (model.llCount,
+                   model.fgCount,
+                   model.flCount,
+                   model.ldLossCount,
+                   model.ldSwapCount,
+                   model.ddGainCount,
+                   model.ddSwapCount)
+
+def avgHistogram(results, cat, N):
+    table = defaultdict(int)
+    for rep in results:
+        res = rep[cat]
+        for key,value in res.items():
+            table[key] += value
+    for key,value in table.items():
+        assert key is not 0
+        table[key] = float(table[key]) / float(len(results))
+    return table
+
+def cumulative(table):
+    xAxis = []
+    yAxis = []    
+    for key,value in table.items():
+            xAxis.append(key)
+            yAxis.append(value * 1)
+    return (xAxis, yAxis)
+    
+def doPlot(ctable, ltable, title):
+    #n, bins, patches = plt.hist(table, 50, normed=1, facecolor='green',
+    #                            alpha=0.75)
+
+    # add a 'best fit' line
+    #y = mlab.normpdf( bins, mu, sigma)
+    #l = plt.plot(bins, y, 'r--', linewidth=1)
+    xAxis, yAxis = cumulative(ctable)
+    xAxis2, yAxis2 = cumulative(ltable)
+    plt.plot(xAxis, yAxis, 'r+', linewidth=1,markersize=100)
+    plt.plot(xAxis2, yAxis2, 'g+', linewidth=1,markersize=10)
+    #plt.hist(xrange(len(table)), table)
+    plt.xlabel('i')
+    plt.ylabel('iEi')
+    plt.title(title)
+#    plt.axis([0, 100000, 0, 100000])
+    plt.grid(True)
+    print xAxis, yAxis
+    
+    plt.show()
+
 
 def main(argv=None):
     if argv is None:
         argv = sys.argv
 
+
     exp = Experiment()
-    t = 1000000
-    N = 10000
-    exp.addParameterSet(t, N, 0.1 / N)
-    exp.addStartingState(10, 10, 10)
+    t = 5000
+    N = 3000000000
+    exp.addParameterSet(t, N, 1.0 / N, 0, fl = 0.00, fg = 0.00,
+                        pgain = 0.00)
+    exp.addStartingState(0, 25, 0)
     exp.run(1, 1)
-    print exp.results
-    
+
+    for result in exp.results.items():
+        fname = str(result[0])
+        fname = fname.replace(" ", "").replace("(", "").replace(")", "")
+        fname = fname.replace(",", "_")
+        ctable = avgHistogram(result[1], "aliveCircular", N)
+        ltable = avgHistogram(result[1], "aliveLinear", N)
+
+        numLinearBases = 0
+        numLinearContigs = 0
+        for key,value in ltable.items():
+            numLinearBases += key * value
+            numLinearContigs += value
+        numCircularBases = 0
+        numCircularContigs = 0
+        for key,value in ctable.items():
+            numCircularBases += key * value
+            numCircularContigs += value
+
+        print "linear; count=%f bases=%f\ncircular; count=%f bases=%f" % (
+            numLinearContigs, numLinearBases,
+            numCircularContigs, numCircularBases)
+        doPlot(ctable, ltable, fname)
 
     
     
