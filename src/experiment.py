@@ -92,7 +92,6 @@ def avgHistogram(results, cat, N):
         for key,value in res.items():
             table[key] += value
     for key,value in table.items():
-        assert key is not 0
         table[key] = float(table[key]) / float(len(results))
     return table
 
@@ -113,7 +112,7 @@ def doPlot(ctable, ltable, title):
     #l = plt.plot(bins, y, 'r--', linewidth=1)
     xAxis, yAxis = cumulative(ctable)
     xAxis2, yAxis2 = cumulative(ltable)
-    plt.plot(xAxis, yAxis, 'r+', linewidth=1,markersize=100)
+    plt.plot(xAxis, yAxis, 'r+', linewidth=1,markersize=25)
     plt.plot(xAxis2, yAxis2, 'g+', linewidth=1,markersize=10)
     #plt.hist(xrange(len(table)), table)
     plt.xlabel('i')
@@ -130,22 +129,35 @@ def main(argv=None):
     if argv is None:
         argv = sys.argv
 
-
     exp = Experiment()
-    t = 5000
+    t = 10000
     N = 3000000000
-    exp.addParameterSet(t, N, 1.0 / N, 0, fl = 0.00, fg = 0.00,
-                        pgain = 0.00)
+    binSize = 1000000
+    replicates = 50
+    exp.addParameterSet(t, N, 1.0 / N, 0, fl = 0.00, fg = 0.00, pgain = 0.00)
     exp.addStartingState(0, 25, 0)
-    exp.run(1, 1)
+    exp.run(replicates, binSize)
 
+    # there iterate for each combination of starting state and parameters
+    # note there is only one for now.
+    # each result is a name - table pair
     for result in exp.results.items():
+
+        # make unique filename as function of parameters
         fname = str(result[0])
         fname = fname.replace(" ", "").replace("(", "").replace(")", "")
         fname = fname.replace(",", "_")
+        # add extensions (pdf?)
+        fname += ".pdf"
+
+        # the results tables are lists of replicates
+        # use the crappy avgHistogram method to compute
+        # the avearge (mean) of each table
         ctable = avgHistogram(result[1], "aliveCircular", N)
         ltable = avgHistogram(result[1], "aliveLinear", N)
+        dtable = avgHistogram(result[1], "dead", N)
 
+        # run through some basic counts for debugging purposes
         numLinearBases = 0
         numLinearContigs = 0
         for key,value in ltable.items():
@@ -156,13 +168,22 @@ def main(argv=None):
         for key,value in ctable.items():
             numCircularBases += key * value
             numCircularContigs += value
+        numDeadBases = 0
+        numDeadContigs = 0
+        for key,value in dtable.items():
+            numDeadBases += key * value
+            numDeadContigs += value
 
-        print "linear; count=%f bases=%f\ncircular; count=%f bases=%f" % (
-            numLinearContigs, numLinearBases,
-            numCircularContigs, numCircularBases)
+        print "linear: contigs=%d bases=%d" % (numLinearContigs,
+                                               numLinearBases)
+        print "circular: contigs=%d bases=%d" % (numCircularContigs,
+                                                 numCircularBases)
+
+        print "dead: contigs=%d bases=%d" % (numDeadContigs,
+                                             numDeadBases)
+
+        # use current travesty to plot just the circlular and linear
         doPlot(ctable, ltable, fname)
 
-    
-    
 if __name__ == "__main__":
     sys.exit(main())
