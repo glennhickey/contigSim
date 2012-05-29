@@ -221,7 +221,7 @@ def main(argv=None):
             exp.addStartingState(3000000, 0, 25)
             exp.addStartingState(3000000, 10, 10)
         
-        exp.run(args.replicates, args.binSize)
+        exp.run(args.replicates, 1)
     else:
         exp = unpackData(args.loadSim)
     if args.saveSim is not None:
