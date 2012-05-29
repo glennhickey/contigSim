@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-experiment.py
+runSim.py
 28 May 2012
 Glenn Hickey, hickey (a) soe ucsc edu
 Dent Earl, dearl (a) soe ucsc edu
@@ -29,10 +29,9 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter, LogLocator, LogFormatter # minor tick marks
 import matplotlib.mlab as mlab
 
-from sonLib.bioio import system
-from src.model import Model
-from src.sampleTree import SampleTree
-from src.experiment import Experiment
+from contigSim.src.model import Model
+from contigSim.src.sampleTree import SampleTree
+from contigSim.src.experiment import Experiment
 
 def initOptions():
     parser = argparse.ArgumentParser(description='Run an experiment.')
@@ -194,8 +193,21 @@ def main(argv=None):
 
     if args.loadSim is None:
         exp = Experiment()
-        exp.addParameterSet(args.t, args.N, 1.0 / args.N, 0, fl = 0.00, fg = 0.00, pgain = 0.00)
+        exp.addParameterSet(args.t, args.N, rll=1.0 / args.N, rld=0, rdd=0, fl = 0.1, fg = 0.00, pgain = 0.00)
+        exp.addParameterSet(args.t, args.N, rll=1.0 / args.N,
+                            rld= 0.1/ args.N, rdd= 0.1 / args.N,
+                            fl = 0.01, fg = 0.01, pgain = 0.01)
+        exp.addParameterSet(args.t, args.N, rll=1.0 / args.N,
+                            rld= 0.1/ args.N, rdd= 1.0 / args.N,
+                            fl = 0.1, fg = 0.1, pgain = 0.1)
+        exp.addParameterSet(args.t, args.N, rll=1.0 / args.N, rld=0, rdd=0, fl = 0.1, fg = 0.00, pgain = 0.00)
+        exp.addParameterSet(args.t, args.N, rll=1.0 / args.N, rld=0, rdd=0, fl = 0.1, fg = 0.00, pgain = 0.00)
         exp.addStartingState(0, 25, 0)
+        exp.addStartingState(1000000, 25, 0)
+        exp.addStartingState(0, 0, 25)
+        exp.addStartingState(1000000, 0, 25)
+        exp.addStartingState(1000000, 10, 10)
+        
         exp.run(args.replicates, args.binSize)
     else:
         exp = unpackData(args.loadSim)
@@ -211,6 +223,7 @@ def main(argv=None):
         fname = fname.replace(" ", "").replace("(", "").replace(")", "")
         fname = fname.replace(",", "_")
         # add extensions (pdf?)
+        txtname = fname + ".txt"
         fname += ".pdf"
 
         # the results tables are lists of replicates
@@ -219,6 +232,8 @@ def main(argv=None):
         ctable = avgHistogram(result[1], "aliveCircular", args)
         ltable = avgHistogram(result[1], "aliveLinear", args)
         dtable = avgHistogram(result[1], "dead", args)
+
+        print ctable
 
         # run through some basic counts for debugging purposes
         numLinearBases = 0
@@ -241,9 +256,16 @@ def main(argv=None):
                                                numLinearBases)
         print "circular: contigs=%d bases=%d" % (numCircularContigs,
                                                  numCircularBases)
-
         print "dead: contigs=%d bases=%d" % (numDeadContigs,
                                              numDeadBases)
+        log = open(txtname, 'w')
+        log.write("linear: contigs=%d bases=%d\n" % (numLinearContigs,
+                                                     numLinearBases))
+        log.write("circular: contigs=%d bases=%d\n" % (numCircularContigs,
+                                                       numCircularBases))
+        log.write("dead: contigs=%d bases=%d\n\n" % (numDeadContigs,
+                                                     numDeadBases))
+        log.close()
 
         # use current travesty to plot just the circlular and linear
         doPlot(ctable, ltable, fname, args)

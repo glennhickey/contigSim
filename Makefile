@@ -1,14 +1,14 @@
 binPath=bin
 
-all : ${binPath}/contigSim.py 
+all : ${binPath}/runSim.py 
 
 clean : 
-	rm -f ${binPath}/contigSim.py
+	rm -f ${binPath}/runSim.py
 
 test: all
 	python tests/allTests.py
 
-${binPath}/contigSim.py : src/contigSim.py
+${binPath}/runSim.py : src/runSim.py
 	mkdir -p $(dir $@)
-	cp src/contigSim.py ${binPath}/contigSim.py
-	chmod +x ${binPath}/contigSim.py
+	cp src/runSim.py ${binPath}/runSim.py
+	chmod +x ${binPath}/runSim.py
