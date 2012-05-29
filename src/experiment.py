@@ -68,6 +68,10 @@ class Experiment(object):
             checkFn = lambda x : not x.isDead() and x.isLinear())
         res["aliveCircular"] = model.pool.histogram(binSize=self.binSize,
             checkFn = lambda x : not x.isDead() and x.isCircular())
+        res["deadLinear"] = model.pool.histogram(binSize=self.binSize,
+            checkFn = lambda x : x.isDead() == True and x.isLinear())
+        res["deadCircular"] = model.pool.histogram(binSize=self.binSize,
+            checkFn = lambda x : x.isDead() ==True and x.isCircular())
         return res
 
     def __runInstance(self, parameters, startState):

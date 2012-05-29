@@ -225,13 +225,12 @@ class Model(object):
             forward = self.fl / 4.0 > random.random()
         else:
             forward = self.fl / 2.0 > random.random()
-            if forward == True:
-                c1 = c1.circularize()
-                c2 = c2.circularize()
         if forward:
+            c1 = c1.circularize()
+            if c1 is not c2:
+                c2 = c2.circularize()
             dcjResult = dcj(c1, offset1, c2, offset2, forward)
             self.flCount += 1
-            assert c1.isLinear() and c2.isLinear()
             assert len(dcjResult) == 1
             if c1 is not c2:
                 assert dcjResult[0].isLinear()

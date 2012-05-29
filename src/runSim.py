@@ -111,10 +111,10 @@ def initAxis(fig, args):
 def writeImage(fig, pdf, args):
     fig.savefig(pdf, format = 'pdf')
     pdf.close()
-def doPlot(ctable, ltable, title, args):
+def doPlot(ctable, ltable, dctable, dltable, title, args):
     fig, pdf = initImage(9.0, 4.0, title, args)
     ax = initAxis(fig, args)
-    drawData(ax, ctable, ltable, title, args)
+    drawData(ax, ctable, ltable, dctable, dltable, title, args)
     if args.savePlot is None:
         plt.show()
     else:
@@ -131,9 +131,11 @@ def extractPlottables(table, binSize):
     x = (np.array(x) * binSize) - binSize / 2.0
     y = np.array(y)
     return x, y 
-def drawData(ax, ctable, ltable, title, args):
+def drawData(ax, ctable, ltable, dctable, dltable, title, args):
     cx, cy = extractPlottables(ctable, args.binSize)
     lx, ly = extractPlottables(ltable, args.binSize)
+    dcx, dcy = extractPlottables(dctable, args.binSize)
+    dlx, dly = extractPlottables(dltable, args.binSize)
     colorList = ['#1f77b4', # dark blue
                  '#aec7e8', # light blue
                  '#ff7f0e', # bright orange
@@ -144,6 +146,8 @@ def drawData(ax, ctable, ltable, title, args):
                  '#c7c7c7', # light gray
                  '#9467bd', # dark purple
                  '#c5b0d5'  # light purple
+                 '#d62728', # dark red
+                 '#ff9896', # light red
                  ]
     plotlist = []
     # there is a bug in our version fo matplotlib that wont allow us to set markeredgecolor='none'
@@ -153,6 +157,13 @@ def drawData(ax, ctable, ltable, title, args):
     plotlist.append(plt.plot(lx, ly, color=colorList[2], linestyle='none', marker='.', 
                              markeredgecolor=colorList[2], markeredgewidth=0, linewidth=0.5,
                              markersize=10.0, alpha=args.alpha)[0])
+    plotlist.append(plt.plot(dcx, dcy, color=colorList[10], linestyle='none', marker='.', 
+                             markeredgecolor=colorList[10], markeredgewidth=0, linewidth=0.5,
+                             markersize=10.0, alpha=args.alpha)[0])
+    plotlist.append(plt.plot(dlx, dly, color=colorList[9], linestyle='none', marker='.', 
+                             markeredgecolor=colorList[9], markeredgewidth=0, linewidth=0.5,
+                             markersize=10.0, alpha=args.alpha)[0])
+
     xmin, xmax = plt.xlim()
     ymin, ymax = plt.ylim()
     if xmin < -1.0:
@@ -180,7 +191,8 @@ def drawData(ax, ctable, ltable, title, args):
         plt.ylabel('Count')
     else:
         plt.ylabel('Frequency per Bin')
-    leg = plt.legend(plotlist, ['Circular Contigs', 'Linear Contigs'], loc=1, numpoints=1)
+    leg = plt.legend(plotlist, ['Circular Contigs', 'Linear Contigs', 'Dead Circular Contigs', 'Dead Linear Contigs'],
+                     loc=1, numpoints=1)
     plt.setp(leg.get_texts(), fontsize='x-small') # legend fontsize
     leg._drawFrame = False
 
@@ -193,20 +205,21 @@ def main(argv=None):
 
     if args.loadSim is None:
         exp = Experiment()
-        exp.addParameterSet(args.t, args.N, rll=1.0 / args.N, rld=0, rdd=0, fl = 0.1, fg = 0.00, pgain = 0.00)
+        exp.addParameterSet(args.t, args.N, rll=1.0 / args.N,
+                            rld=0, rdd=0,
+                            fl = 0, fg = 0, pgain = 0.00)        
         exp.addParameterSet(args.t, args.N, rll=1.0 / args.N,
                             rld= 0.1/ args.N, rdd= 0.1 / args.N,
-                            fl = 0.01, fg = 0.01, pgain = 0.01)
+                            fl = 0.5, fg = 0.5, pgain = 0.00)
         exp.addParameterSet(args.t, args.N, rll=1.0 / args.N,
-                            rld= 0.1/ args.N, rdd= 1.0 / args.N,
-                            fl = 0.1, fg = 0.1, pgain = 0.1)
-        exp.addParameterSet(args.t, args.N, rll=1.0 / args.N, rld=0, rdd=0, fl = 0.1, fg = 0.00, pgain = 0.00)
-        exp.addParameterSet(args.t, args.N, rll=1.0 / args.N, rld=0, rdd=0, fl = 0.1, fg = 0.00, pgain = 0.00)
+                            rld= 0.1/ args.N, rdd= 0.1 / args.N,
+                            fl = 0.5, fg = 0.5, pgain = 0.5)
         exp.addStartingState(0, 25, 0)
-        exp.addStartingState(1000000, 25, 0)
         exp.addStartingState(0, 0, 25)
-        exp.addStartingState(1000000, 0, 25)
-        exp.addStartingState(1000000, 10, 10)
+        if args.N > 3000025:
+            exp.addStartingState(3000000, 25, 0)
+            exp.addStartingState(3000000, 0, 25)
+            exp.addStartingState(3000000, 10, 10)
         
         exp.run(args.replicates, args.binSize)
     else:
@@ -219,9 +232,7 @@ def main(argv=None):
     # each result is a name - table pair
     for result in exp.results.items():
         # make unique filename as function of parameters
-        fname = str(result[0])
-        fname = fname.replace(" ", "").replace("(", "").replace(")", "")
-        fname = fname.replace(",", "_")
+        fname = "t%d_N%d_rll%.2f_rld%.2f_rdd_%.2f_fl%.2f_fg%.2f_pgain_%.2f__gbg%d_nl%d_nc%d" % result[0]
         # add extensions (pdf?)
         txtname = fname + ".txt"
         fname += ".pdf"
@@ -231,9 +242,8 @@ def main(argv=None):
         # the avearge (mean) of each table
         ctable = avgHistogram(result[1], "aliveCircular", args)
         ltable = avgHistogram(result[1], "aliveLinear", args)
-        dtable = avgHistogram(result[1], "dead", args)
-
-        print ctable
+        dctable = avgHistogram(result[1], "deadCircular", args)
+        dltable = avgHistogram(result[1], "deadLinear", args)
 
         # run through some basic counts for debugging purposes
         numLinearBases = 0
@@ -246,29 +256,39 @@ def main(argv=None):
         for key,value in ctable.items():
             numCircularBases += key * value
             numCircularContigs += value
-        numDeadBases = 0
-        numDeadContigs = 0
-        for key,value in dtable.items():
-            numDeadBases += key * value
-            numDeadContigs += value
+        numDeadLinearBases = 0
+        numDeadLinearContigs = 0
+        for key,value in dltable.items():
+            numDeadLinearBases += key * value
+            numDeadLinearContigs += value
+        numDeadCircularBases = 0
+        numDeadCircularContigs = 0
+        for key,value in dctable.items():
+            numDeadCircularBases += key * value
+            numDeadCircularContigs += value
 
         print "linear: contigs=%d bases=%d" % (numLinearContigs,
                                                numLinearBases)
         print "circular: contigs=%d bases=%d" % (numCircularContigs,
                                                  numCircularBases)
-        print "dead: contigs=%d bases=%d" % (numDeadContigs,
-                                             numDeadBases)
+        print "deadLinear: contigs=%d bases=%d" % (numDeadLinearContigs,
+                                                   numDeadLinearBases)
+        print "deadCircular: contigs=%d bases=%d" % (numDeadCircularContigs,
+                                                     numDeadCircularBases)
+
         log = open(txtname, 'w')
         log.write("linear: contigs=%d bases=%d\n" % (numLinearContigs,
                                                      numLinearBases))
         log.write("circular: contigs=%d bases=%d\n" % (numCircularContigs,
                                                        numCircularBases))
-        log.write("dead: contigs=%d bases=%d\n\n" % (numDeadContigs,
-                                                     numDeadBases))
+        log.write("deadLinear: contigs=%d bases=%d" % (numDeadLinearContigs,
+                                                       numDeadLinearBases))
+        log.write("deadCircular: contigs=%d bases=%d" % (numDeadCircularContigs,
+                                                         numDeadCircularBases))
         log.close()
 
-        # use current travesty to plot just the circlular and linear
-        doPlot(ctable, ltable, fname, args)
+        # use dent's awesome functinos to plot the results
+        doPlot(ctable, ltable, dctable, dltable, fname, args)
 
 if __name__ == "__main__":
     sys.exit(main())
