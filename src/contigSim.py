@@ -144,7 +144,9 @@ def drawData(ax, ctable, ltable, title, args):
                  '#7F80AB', # purple-ish slate blue
                  '#c7c7c7', # light gray
                  '#9467bd', # dark purple
-                 '#c5b0d5'  # light purple
+                 '#c5b0d5', # light purple
+                 '#d62728', # dark red
+                 '#ff9896', # light red
                  ]
     plotlist = []
     # there is a bug in our version fo matplotlib that wont allow us to set markeredgecolor='none'
