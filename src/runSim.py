@@ -145,7 +145,7 @@ def drawData(ax, ctable, ltable, dctable, dltable, title, args):
                  '#7F80AB', # purple-ish slate blue
                  '#c7c7c7', # light gray
                  '#9467bd', # dark purple
-                 '#c5b0d5'  # light purple
+                 '#c5b0d5', # light purple
                  '#d62728', # dark red
                  '#ff9896', # light red
                  ]
