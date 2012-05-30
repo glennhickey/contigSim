@@ -288,9 +288,13 @@ class Model(object):
         else:
             self.ldSwapCount += 1
             
-         # add the resulting contigs back to the pool
+        # add the resulting contigs back to the pool
+        deadCount = 0
         for res in dcjResult:
+            if res.isDead():
+                deadCount += 1
             self.pool.insert(res, res.numBases())
+        assert deadCount == 1
             
     ##################################################################
     #DEAD-DEAD event.  The dead contig rearranges with itself.  pgain
@@ -339,6 +343,7 @@ class Model(object):
         else:
             self.ddGainCount += 1
             assert len(dcjResult) == 2
+            assert not dcjResult[0].isDead() or not dcjResult[1].isDead()
         
          # add the resulting contigs back to the pool
         for res in dcjResult:

@@ -157,11 +157,11 @@ def drawData(ax, ctable, ltable, dctable, dltable, title, args):
     plotlist.append(plt.plot(lx, ly, color=colorList[2], linestyle='none', marker='.', 
                              markeredgecolor=colorList[2], markeredgewidth=0, linewidth=0.5,
                              markersize=10.0, alpha=args.alpha)[0])
-    plotlist.append(plt.plot(dcx, dcy, color=colorList[10], linestyle='none', marker='.', 
-                             markeredgecolor=colorList[10], markeredgewidth=0, linewidth=0.5,
+    plotlist.append(plt.plot(dcx, dcy, color=colorList[8], linestyle='none', marker='.', 
+                             markeredgecolor=colorList[8], markeredgewidth=0, linewidth=0.5,
                              markersize=10.0, alpha=args.alpha)[0])
-    plotlist.append(plt.plot(dlx, dly, color=colorList[9], linestyle='none', marker='.', 
-                             markeredgecolor=colorList[9], markeredgewidth=0, linewidth=0.5,
+    plotlist.append(plt.plot(dlx, dly, color=colorList[10], linestyle='none', marker='.', 
+                             markeredgecolor=colorList[10], markeredgewidth=0, linewidth=0.5,
                              markersize=10.0, alpha=args.alpha)[0])
 
     xmin, xmax = plt.xlim()
@@ -191,8 +191,7 @@ def drawData(ax, ctable, ltable, dctable, dltable, title, args):
         plt.ylabel('Count')
     else:
         plt.ylabel('Frequency per Bin')
-    leg = plt.legend(plotlist, ['Circular Contigs', 'Linear Contigs', 'Dead Circular Contigs', 'Dead Linear Contigs'],
-                     loc=1, numpoints=1)
+    leg = plt.legend(plotlist, ['Circular Contigs', 'Linear Contigs', 'Dead Circular Contigs', 'Dead Linear Contigs'], loc=1, numpoints=1)
     plt.setp(leg.get_texts(), fontsize='x-small') # legend fontsize
     leg._drawFrame = False
 
@@ -221,7 +220,7 @@ def main(argv=None):
             exp.addStartingState(3000000, 0, 25)
             exp.addStartingState(3000000, 10, 10)
         
-        exp.run(args.replicates, 1)
+        exp.run(args.replicates, args.binSize)
     else:
         exp = unpackData(args.loadSim)
     if args.saveSim is not None:
@@ -267,25 +266,28 @@ def main(argv=None):
             numDeadCircularBases += key * value
             numDeadCircularContigs += value
 
-        print "linear: contigs=%d bases=%d" % (numLinearContigs,
+        print "linear: contigs=%.2f bases=%d" % (numLinearContigs,
                                                numLinearBases)
-        print "circular: contigs=%d bases=%d" % (numCircularContigs,
+        print "circular: contigs=%.2f bases=%d" % (numCircularContigs,
                                                  numCircularBases)
-        print "deadLinear: contigs=%d bases=%d" % (numDeadLinearContigs,
+        print "deadLinear: contigs=%.2f bases=%d" % (numDeadLinearContigs,
                                                    numDeadLinearBases)
-        print "deadCircular: contigs=%d bases=%d" % (numDeadCircularContigs,
+        print "deadCircular: contigs=%.2f bases=%d" % (numDeadCircularContigs,
                                                      numDeadCircularBases)
 
         log = open(txtname, 'w')
-        log.write("linear: contigs=%d bases=%d\n" % (numLinearContigs,
+        log.write("linear: contigs=%.2f bases=%d\n" % (numLinearContigs,
                                                      numLinearBases))
-        log.write("circular: contigs=%d bases=%d\n" % (numCircularContigs,
+        log.write("circular: contigs=%.2f bases=%d\n" % (numCircularContigs,
                                                        numCircularBases))
-        log.write("deadLinear: contigs=%d bases=%d" % (numDeadLinearContigs,
-                                                       numDeadLinearBases))
-        log.write("deadCircular: contigs=%d bases=%d" % (numDeadCircularContigs,
-                                                         numDeadCircularBases))
+        log.write("deadLinear: contigs=%.2f bases=%d\n" % (numDeadLinearContigs,
+                                                         numDeadLinearBases))
+        log.write("deadCircular: contigs=%.2f bases=%d\n" %(numDeadCircularContigs,
+                                                           numDeadCircularBases))
         log.close()
+
+        # sanity check since only one dead contig presently supported
+        assert numDeadCircularContigs + numDeadLinearContigs <= args.replicates
 
         # use dent's awesome functinos to plot the results
         doPlot(ctable, ltable, dctable, dltable, fname, args)
