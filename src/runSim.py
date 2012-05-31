@@ -35,7 +35,8 @@ from contigSim.src.experiment import Experiment
 
 def initOptions():
     parser = argparse.ArgumentParser(description='Run an experiment.')
-    parser.add_argument('--savePlot', type=str, help='Location to save pdf plot.')
+    parser.add_argument('--showPlot', default=False, action='store_true',
+                        help='show plots instead of saving to pdfs')
     parser.add_argument('--replicates', type=int, default=50, 
                         help='Number of replicates to run. default=%(default)s')
     parser.add_argument('--binSize', type=int, default=1000000,
@@ -52,6 +53,11 @@ def initOptions():
     parser.add_argument('--loadSim', type=str, help='Location to load pickle.')
     parser.add_argument('--alpha', type=float, default=0.3, 
                         help='Alpha transparency for plot, [0, 1]. default=%(default)s')
+    parser.add_argument('--numParamSets', type=int, default=1,
+                        help='Number of predefined parameter sets to use. default=%(default)s')
+    parser.add_argument('--numStartingStates', type=int, default=1,
+                        help='Number of predefined starting states to use. default=%(default)s')
+
     return parser
 def checkOptions(args, parser):
     if args.saveSim is not None and args.loadSim is not None:
@@ -115,7 +121,7 @@ def doPlot(ctable, ltable, dctable, dltable, title, args):
     fig, pdf = initImage(9.0, 4.0, title, args)
     ax = initAxis(fig, args)
     drawData(ax, ctable, ltable, dctable, dltable, title, args)
-    if args.savePlot is None:
+    if args.showPlot is True:
         plt.show()
     else:
         writeImage(fig, pdf, args)
@@ -204,21 +210,30 @@ def main(argv=None):
 
     if args.loadSim is None:
         exp = Experiment()
-        exp.addParameterSet(args.t, args.N, rll=1.0 / args.N,
-                            rld=0, rdd=0,
-                            fl = 0, fg = 0, pgain = 0.00)        
-        exp.addParameterSet(args.t, args.N, rll=1.0 / args.N,
-                            rld= 0.1/ args.N, rdd= 0.1 / args.N,
-                            fl = 0.5, fg = 0.5, pgain = 0.00)
-        exp.addParameterSet(args.t, args.N, rll=1.0 / args.N,
-                            rld= 0.1/ args.N, rdd= 0.1 / args.N,
-                            fl = 0.5, fg = 0.5, pgain = 0.5)
-        exp.addStartingState(0, 25, 0)
-        exp.addStartingState(0, 0, 25)
+        if args.numParamSets > 0:
+            exp.addParameterSet(args.t, args.N, rll=1.0 / args.N,
+                                rld=0, rdd=0,
+                                fl = 0, fg = 0, pgain = 0.00)
+        if args.numParamSets > 1:
+            exp.addParameterSet(args.t, args.N, rll=1.0 / args.N,
+                                rld= 0.1/ args.N, rdd= 0.1 / args.N,
+                                fl = 0.5, fg = 0.5, pgain = 0.00)
+        if args.numParamSets > 2:
+            exp.addParameterSet(args.t, args.N, rll=1.0 / args.N,
+                                rld= 0.1/ args.N, rdd= 0.1 / args.N,
+                                fl = 0.5, fg = 0.5, pgain = 0.5)
+        if args.numStartingStates > 0:
+            exp.addStartingState(0, 25, 0)
+        if args.numStartingStates > 1:
+            exp.addStartingState(0, 0, 25)
+
         if args.N > 3000025:
-            exp.addStartingState(3000000, 25, 0)
-            exp.addStartingState(3000000, 0, 25)
-            exp.addStartingState(3000000, 10, 10)
+            if args.numStartingStates > 2:
+                exp.addStartingState(3000000, 25, 0)
+            if args.numStartingStates > 3:
+                exp.addStartingState(3000000, 0, 25)
+            if args.numStartingStates > 4:
+                exp.addStartingState(3000000, 10, 10)
         
         exp.run(args.replicates, args.binSize)
     else:
